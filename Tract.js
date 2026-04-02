@@ -62,13 +62,19 @@ export class Tract {
     // Materials are cloned lazily on first call so shared instances are not affected.
     setOpacity(opacity) {
         const transparent = opacity < 1;
-        [...this.allMeshes, ...this.allLines].forEach(obj => {
-            if (!obj.userData.ownsMaterial) {
-                obj.material = obj.material.clone();
-                obj.userData.ownsMaterial = true;
+        const showLines = opacity === 1;
+
+        this.allMeshes.forEach(mesh => {
+            if (!mesh.userData.ownsMaterial) {
+                mesh.material = mesh.material.clone();
+                mesh.userData.ownsMaterial = true;
             }
-            obj.material.transparent = transparent;
-            obj.material.opacity = opacity;
+            mesh.material.transparent = transparent;
+            mesh.material.opacity = opacity;
+        });
+
+        this.allLines.forEach(line => {
+            line.visible = showLines;
         });
     }
 }

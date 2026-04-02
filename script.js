@@ -2,16 +2,12 @@ import * as THREE from 'three';
 import { buildMap } from './map.js';
 import { showTooltip, hideTooltip } from './tooltip.js';
 
-// ─── Scene ───────────────────────────────────────────────────────────────────
-
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
 
 const mapGroup = new THREE.Group();
 mapGroup.scale.set(0.8, 0.8, 0.8);
 scene.add(mapGroup);
-
-// ─── Lighting ────────────────────────────────────────────────────────────────
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
@@ -20,14 +16,10 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.position.set(5, 5, 5);
 scene.add(directionalLight);
 
-// ─── Camera ──────────────────────────────────────────────────────────────────
-
 const sizes = { width: window.innerWidth, height: window.innerHeight };
 
 const camera = new THREE.PerspectiveCamera(45, sizes.width / sizes.height, 0.1, 1000);
 camera.position.z = 2;
-
-// ─── Renderer ────────────────────────────────────────────────────────────────
 
 const canvas = document.querySelector('canvas.webgl');
 
@@ -44,8 +36,6 @@ window.addEventListener('resize', () => {
     renderer.setSize(sizes.width, sizes.height);
     needsRender = true;
 });
-
-// ─── Input ───────────────────────────────────────────────────────────────────
 
 const mouse = { x: 0, y: 0 };
 let isPaused = false;
@@ -79,8 +69,6 @@ document.addEventListener('keydown', event => {
     }
 });
 
-// ─── Selection ───────────────────────────────────────────────────────────────
-
 const raycaster = new THREE.Raycaster();
 let selectedTractCode = null;
 let allTractMap = new Map();
@@ -90,7 +78,7 @@ let allMeshes = []; // flat list of every mesh, used for raycasting
 function selectTract(tractCode, clientX, clientY) {
     selectedTractCode = tractCode;
     allTractMap.forEach((tract, code) => {
-        tract.setOpacity(code === tractCode ? 1.0 : 0.05);
+        tract.setOpacity(code === tractCode ? 1.0 : 0.02);
     });
     showTooltip(tractCode, allLayers, clientX, clientY);
     needsRender = true;
@@ -126,8 +114,6 @@ canvas.addEventListener('click', event => {
     }
 });
 
-// ─── Map ─────────────────────────────────────────────────────────────────────
-
 let mapLoaded = false;
 
 buildMap(mapGroup).then(({ tracts, layers }) => {
@@ -136,11 +122,30 @@ buildMap(mapGroup).then(({ tracts, layers }) => {
     allMeshes = [...tracts.values()].flatMap(t => t.allMeshes);
     mapLoaded = true;
     needsRender = true;
+    buildLayersPanel(layers);
 }).catch(err => {
     console.error('Failed to build map:', err);
 });
 
-// ─── Render loop ─────────────────────────────────────────────────────────────
+function buildLayersPanel(layers) {
+    const list = document.getElementById('layersList');
+    layers.forEach(layer => {
+        const li = document.createElement('li');
+        li.className = 'layer-item';
+        const hex = '#' + layer.color.toString(16).padStart(6, '0');
+        li.innerHTML = `
+            <span class="layer-swatch" style="background:${hex}"></span>
+            <span>${layer.name}</span>`;
+        list.appendChild(li);
+    });
+}
+
+const layersToggle = document.getElementById('layersToggle');
+const layersList   = document.getElementById('layersList');
+layersToggle.addEventListener('click', () => {
+    const collapsed = layersList.classList.toggle('collapsed');
+    layersToggle.textContent = collapsed ? '+' : '−';
+});
 
 const tick = () => {
     if (!isPaused && isMapMoveEnabled && mapLoaded) {

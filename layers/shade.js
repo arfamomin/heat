@@ -29,7 +29,7 @@ async function fetchShadeData() {
 }
 
 export const shadeLayer = new Layer({
-    name: 'Shade',
+    name: 'Tree Shade',
     color: 0xC2EB66,
     edgeColor: 0x405b19,
     minDepth: 0.02,

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Tract } from './Tract.js';
 import { shadeLayer } from './layers/shade.js';
+import { heatIslandLayer } from './layers/heatIsland.js';
 
 const BASE_DEPTH = 0.05;
 
@@ -95,7 +96,7 @@ export async function buildMap(mapGroup) {
     // whatever height each tract has already accumulated.
     const layers = [
         shadeLayer,
-        // add more layers here as data becomes available
+        heatIslandLayer,
     ];
 
     for (const layer of layers) {
