@@ -25,7 +25,8 @@ export class Layer {
         this.maxDepth = maxDepth;
         this.fetchData = fetchData;
 
-        this.depthByTract = new Map(); // tractCode -> computed depth
+        this.depthByTract = new Map(); // tractCode -> computed extrusion depth
+        this.rawByTract = new Map();   // tractCode -> original data value (for tooltip)
         this.meshes = [];
         this.lines = [];
         this.visible = true;
@@ -54,6 +55,7 @@ export class Layer {
         const max = Math.max(...values);
 
         rawMap.forEach((value, tractCode) => {
+            this.rawByTract.set(tractCode, value);
             const t = normalizeValue(value, min, max);
             this.depthByTract.set(tractCode, this.minDepth + t * (this.maxDepth - this.minDepth));
         });

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildMap } from './map.js';
+import { showTooltip, hideTooltip } from './tooltip.js';
 
 // ─── Scene ───────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ window.addEventListener('resize', () => {
     camera.aspect = sizes.width / sizes.height;
     camera.updateProjectionMatrix();
     renderer.setSize(sizes.width, sizes.height);
+    needsRender = true;
 });
 
 // ─── Input ───────────────────────────────────────────────────────────────────
@@ -77,11 +79,61 @@ document.addEventListener('keydown', event => {
     }
 });
 
+// ─── Selection ───────────────────────────────────────────────────────────────
+
+const raycaster = new THREE.Raycaster();
+let selectedTractCode = null;
+let allTractMap = new Map();
+let allLayers = [];
+let allMeshes = []; // flat list of every mesh, used for raycasting
+
+function selectTract(tractCode, clientX, clientY) {
+    selectedTractCode = tractCode;
+    allTractMap.forEach((tract, code) => {
+        tract.setOpacity(code === tractCode ? 1.0 : 0.05);
+    });
+    showTooltip(tractCode, allLayers, clientX, clientY);
+    needsRender = true;
+}
+
+function clearSelection() {
+    selectedTractCode = null;
+    allTractMap.forEach(tract => tract.setOpacity(1.0));
+    hideTooltip();
+    needsRender = true;
+}
+
+canvas.addEventListener('click', event => {
+    if (!mapLoaded) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width)  *  2 - 1;
+    const y = ((event.clientY - rect.top)  / rect.height) * -2 + 1;
+
+    raycaster.setFromCamera({ x, y }, camera);
+    const hits = raycaster.intersectObjects(allMeshes);
+
+    if (hits.length === 0) {
+        clearSelection();
+        return;
+    }
+
+    const tractCode = hits[0].object.userData.tractCode;
+    if (tractCode === selectedTractCode) {
+        clearSelection();
+    } else {
+        selectTract(tractCode, event.clientX, event.clientY);
+    }
+});
+
 // ─── Map ─────────────────────────────────────────────────────────────────────
 
 let mapLoaded = false;
 
 buildMap(mapGroup).then(({ tracts, layers }) => {
+    allTractMap = tracts;
+    allLayers = layers;
+    allMeshes = [...tracts.values()].flatMap(t => t.allMeshes);
     mapLoaded = true;
     needsRender = true;
 }).catch(err => {
