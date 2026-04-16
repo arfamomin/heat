@@ -41,6 +41,18 @@ body {
     border-radius: 4px;
     font-weight: 400;
     font-size: 20px;
+    cursor: default;
+    transition: background 0.3s, color 0.3s;
+}
+
+.header-title .highlight.state-1 {
+    background: #ff96fb;
+    color: #111;
+}
+
+.header-title .highlight.state-2 {
+    background: #fcba03;
+    color: #111;
 }
 
 .header-title .plain {

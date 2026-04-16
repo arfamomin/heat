@@ -235,6 +235,20 @@ function buildLayersPanel(layers) {
     });
 }
 
+const titleStates = [
+    { text: 'Reimagined',   cls: ''        },
+    { text: 'Paradoxical',  cls: 'state-1' },
+    { text: 'Multifaceted', cls: 'state-2' },
+];
+let titleIndex = 0;
+const highlightEl = document.querySelector('.header-title .highlight');
+highlightEl.addEventListener('mouseenter', () => {
+    titleIndex = (titleIndex + 1) % titleStates.length;
+    const { text, cls } = titleStates[titleIndex];
+    highlightEl.textContent = text;
+    highlightEl.className = 'highlight' + (cls ? ' ' + cls : '');
+});
+
 const layersToggle = document.getElementById('layersToggle');
 const layersList   = document.getElementById('layersList');
 layersToggle.addEventListener('click', () => {
