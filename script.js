@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import { buildMap } from './map.js';
+import { buildMap, BASE_DEPTH } from './map.js';
 import { showTooltip, hideTooltip } from './tooltip.js';
+import { initInset, updateInset } from './inset.js';
+import { NeighborhoodLayer } from './layers/neighborhoods.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
@@ -34,6 +36,7 @@ window.addEventListener('resize', () => {
     camera.aspect = sizes.width / sizes.height;
     camera.updateProjectionMatrix();
     renderer.setSize(sizes.width, sizes.height);
+    if (neighborhoodLayer) neighborhoodLayer.onResize(sizes.width, sizes.height);
     needsRender = true;
 });
 
@@ -43,12 +46,22 @@ let isMapMoveEnabled = true;
 let needsRender = true;
 
 const ZOOM_MIN = 1;
-const ZOOM_MAX = 10;
+const ZOOM_MAX = 20;
 const ZOOM_SPEED = 0.002;
+
+let neighborhoodLayer = null;
+let hoveredNeighborhood = null;
 
 document.addEventListener('mousemove', event => {
     mouse.x = (event.clientX / sizes.width) * 2 - 1;
     mouse.y = -(event.clientY / sizes.height) * 2 + 1;
+
+    if (neighborhoodLayer?.visible && mapLoaded) {
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects(neighborhoodLayer.hitMeshes);
+        hoveredNeighborhood = hits.length > 0 ? hits[0].object.userData.neighborhoodName : null;
+    }
+
     needsRender = true;
 });
 
@@ -73,13 +86,14 @@ const raycaster = new THREE.Raycaster();
 let selectedTractCode = null;
 let allTractMap = new Map();
 let allLayers = [];
-let allMeshes = []; // flat list of every mesh, used for raycasting
+let allMeshes = [];
 
 function selectTract(tractCode, clientX, clientY) {
     selectedTractCode = tractCode;
     allTractMap.forEach((tract, code) => {
         tract.setOpacity(code === tractCode ? 1.0 : 0.02);
     });
+    if (neighborhoodLayer) neighborhoodLayer.setOpacity(0.02);
     showTooltip(tractCode, allLayers, clientX, clientY);
     needsRender = true;
 }
@@ -87,6 +101,7 @@ function selectTract(tractCode, clientX, clientY) {
 function clearSelection() {
     selectedTractCode = null;
     allTractMap.forEach(tract => tract.setOpacity(1.0));
+    if (neighborhoodLayer) neighborhoodLayer.setOpacity(1.0);
     hideTooltip();
     needsRender = true;
 }
@@ -116,26 +131,90 @@ canvas.addEventListener('click', event => {
 
 let mapLoaded = false;
 
-buildMap(mapGroup).then(({ tracts, layers }) => {
+buildMap(mapGroup).then(async ({ tracts, layers, laFeatures, geoBounds, geoScale, geoOffset }) => {
     allTractMap = tracts;
     allLayers = layers;
     allMeshes = [...tracts.values()].flatMap(t => t.allMeshes);
+
+    neighborhoodLayer = new NeighborhoodLayer();
+    await neighborhoodLayer.load();
+    neighborhoodLayer.build(mapGroup, geoScale, geoOffset, tracts, layers, BASE_DEPTH);
+    allLayers.push(neighborhoodLayer);
+
     mapLoaded = true;
     needsRender = true;
-    buildLayersPanel(layers);
+    buildLayersPanel(allLayers);
+    initInset(laFeatures, geoBounds, geoScale);
 }).catch(err => {
     console.error('Failed to build map:', err);
 });
 
+function restack() {
+    allTractMap.forEach((_, tractCode) => {
+        let z = BASE_DEPTH;
+        for (const layer of allLayers) {
+            const entry = layer.tractEntries.get(tractCode);
+            if (!entry) continue;
+            if (layer.visible) {
+                entry.meshes.forEach(m => { m.position.z = z; });
+                entry.lines.forEach(l => { l.position.z = z; });
+                z += entry.depth;
+            }
+        }
+    });
+    if (neighborhoodLayer) neighborhoodLayer.updateOutlineHeights(allLayers);
+    needsRender = true;
+}
+
 function buildLayersPanel(layers) {
     const list = document.getElementById('layersList');
-    layers.forEach(layer => {
+    list.innerHTML = '';
+
+    layers.forEach((layer, index) => {
         const li = document.createElement('li');
         li.className = 'layer-item';
+        li.draggable = true;
         const hex = '#' + layer.color.toString(16).padStart(6, '0');
         li.innerHTML = `
-            <span class="layer-swatch" style="background:${hex}"></span>
-            <span>${layer.name}</span>`;
+            <span class="layer-swatch${layer.visible ? '' : ' layer-swatch--off'}" style="background:${hex}" title="Toggle layer"></span>
+            <span class="layer-name">${layer.name}</span>`;
+
+        const swatch = li.querySelector('.layer-swatch');
+        swatch.addEventListener('click', () => {
+            const visible = !layer.visible;
+            layer.setVisible(visible);
+            swatch.classList.toggle('layer-swatch--off', !visible);
+            restack();
+        });
+
+        li.addEventListener('dragstart', e => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', String(index));
+            li.classList.add('dragging');
+        });
+
+        li.addEventListener('dragend', () => {
+            li.classList.remove('dragging');
+            list.querySelectorAll('.layer-item').forEach(el => el.classList.remove('drag-over'));
+        });
+
+        li.addEventListener('dragover', e => {
+            e.preventDefault();
+            list.querySelectorAll('.layer-item').forEach(el => el.classList.remove('drag-over'));
+            li.classList.add('drag-over');
+        });
+
+        li.addEventListener('drop', e => {
+            e.preventDefault();
+            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+            const toIndex = index;
+            if (fromIndex === toIndex) return;
+            const [moved] = allLayers.splice(fromIndex, 1);
+            allLayers.splice(toIndex, 0, moved);
+            buildLayersPanel(allLayers);
+            restack();
+        });
+
         list.appendChild(li);
     });
 }
@@ -155,6 +234,8 @@ const tick = () => {
 
     if (needsRender) {
         renderer.render(scene, camera);
+        if (neighborhoodLayer) neighborhoodLayer.updateLabels(camera, mapGroup, sizes, hoveredNeighborhood);
+        updateInset(camera);
         needsRender = false;
     }
 

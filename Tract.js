@@ -65,6 +65,7 @@ export class Tract {
         const showLines = opacity === 1;
 
         this.allMeshes.forEach(mesh => {
+            if (mesh.userData.layerHidden) return;
             if (!mesh.userData.ownsMaterial) {
                 mesh.material = mesh.material.clone();
                 mesh.userData.ownsMaterial = true;
@@ -74,6 +75,7 @@ export class Tract {
         });
 
         this.allLines.forEach(line => {
+            if (line.userData.layerHidden) return;
             line.visible = showLines;
         });
     }

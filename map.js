@@ -3,7 +3,7 @@ import { Tract } from './Tract.js';
 import { shadeLayer } from './layers/shade.js';
 import { heatIslandLayer } from './layers/heatIsland.js';
 
-const BASE_DEPTH = 0.05;
+export const BASE_DEPTH = 0.05;
 
 const LA_CITY_BOUNDS = {
     minLon: -118.685,
@@ -105,5 +105,5 @@ export async function buildMap(mapGroup) {
     }
 
     console.log(`Loaded ${tracts.size} tracts, ${layers.length} layer(s)`);
-    return { tracts, layers };
+    return { tracts, layers, laFeatures, geoBounds: { minX, maxX, minY, maxY }, geoScale: scale, geoOffset: { offsetX, offsetY } };
 }

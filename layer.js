@@ -30,6 +30,7 @@ export class Layer {
         this.meshes = [];
         this.lines = [];
         this.visible = true;
+        this.tractEntries = new Map(); // tractCode -> { meshes, lines, depth }
 
         this.material = new THREE.MeshPhongMaterial({
             color: this.color,
@@ -72,12 +73,19 @@ export class Layer {
             const { meshes, lines } = tract.addLayer(depth, this.material, this.lineMaterial);
             this.meshes.push(...meshes);
             this.lines.push(...lines);
+            this.tractEntries.set(tractCode, { meshes, lines, depth });
         });
     }
 
     setVisible(visible) {
         this.visible = visible;
-        this.meshes.forEach(m => (m.visible = visible));
-        this.lines.forEach(l => (l.visible = visible));
+        this.meshes.forEach(m => {
+            m.visible = visible;
+            m.userData.layerHidden = !visible;
+        });
+        this.lines.forEach(l => {
+            l.visible = visible;
+            l.userData.layerHidden = !visible;
+        });
     }
 }

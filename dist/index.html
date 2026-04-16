@@ -4,12 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reimagined Heat</title>
-  <script type="module" crossorigin src="/assets/index-C6OAfsBG.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BrLlZrRU.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/assets/index-DZj3R_t2.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-D3fYgKej.css">
 </head>
 <body>
 
-    <header>
+    <header class="app-header">
         <div class="header-title">
             <span class="highlight">Reimagined</span>
             <span class="plain">Heat</span>
@@ -18,5 +21,17 @@
     </header>
 
     <canvas class="webgl"></canvas>
+
+    <div id="layers-panel">
+        <div class="layers-header">
+            <span class="layers-title">Layers</span>
+            <button class="layers-toggle" id="layersToggle">−</button>
+        </div>
+        <ul class="layers-list" id="layersList"></ul>
+    </div>
+
+    <!-- <div id="inset-map"></div> -->
+
+    <div id="tract-tooltip"></div>
 </body>
 </html>
