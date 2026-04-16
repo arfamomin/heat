@@ -51,6 +51,19 @@ const ZOOM_SPEED = 0.002;
 
 let neighborhoodLayer = null;
 let hoveredNeighborhood = null;
+let flyingToTop = false;
+
+function updateSpaceHint() {
+    const kbd = document.querySelector('.keyhint kbd');
+    if (kbd) kbd.classList.toggle('active', !isMapMoveEnabled);
+}
+
+function flyToTopDown() {
+    isMapMoveEnabled = false;
+    flyingToTop = true;
+    updateSpaceHint();
+    needsRender = true;
+}
 
 document.addEventListener('mousemove', event => {
     mouse.x = (event.clientX / sizes.width) * 2 - 1;
@@ -76,6 +89,7 @@ document.addEventListener('keydown', event => {
     if (event.code === 'Space' && !event.repeat) {
         event.preventDefault();
         isMapMoveEnabled = !isMapMoveEnabled;
+        updateSpaceHint();
     }
     if (event.key.toLowerCase() === 'f') {
         isPaused = !isPaused;
@@ -185,6 +199,8 @@ function buildLayersPanel(layers) {
             layer.setVisible(visible);
             swatch.classList.toggle('layer-swatch--off', !visible);
             restack();
+            if (layer === neighborhoodLayer && visible) flyToTopDown();
+            if (layer === neighborhoodLayer && !visible) { isMapMoveEnabled = true; updateSpaceHint(); }
         });
 
         li.addEventListener('dragstart', e => {
@@ -227,7 +243,16 @@ layersToggle.addEventListener('click', () => {
 });
 
 const tick = () => {
-    if (!isPaused && isMapMoveEnabled && mapLoaded) {
+    if (flyingToTop) {
+        mapGroup.rotation.x += (0 - mapGroup.rotation.x) * 0.08;
+        mapGroup.rotation.y += (0 - mapGroup.rotation.y) * 0.08;
+        if (Math.abs(mapGroup.rotation.x) < 0.001 && Math.abs(mapGroup.rotation.y) < 0.001) {
+            mapGroup.rotation.x = 0;
+            mapGroup.rotation.y = 0;
+            flyingToTop = false;
+        }
+        needsRender = true;
+    } else if (!isPaused && isMapMoveEnabled && mapLoaded) {
         mapGroup.rotation.y = mouse.x * Math.PI;
         mapGroup.rotation.x = mouse.y * Math.PI;
     }

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Tract } from './Tract.js';
 import { shadeLayer } from './layers/shade.js';
 import { heatIslandLayer } from './layers/heatIsland.js';
+import { vulnerablePopLayer } from './layers/vulnerablePop.js';
 
 export const BASE_DEPTH = 0.05;
 
@@ -95,6 +96,7 @@ export async function buildMap(mapGroup) {
     // Each layer's load() normalizes its data, then build() stacks it on top of
     // whatever height each tract has already accumulated.
     const layers = [
+        vulnerablePopLayer,
         shadeLayer,
         heatIslandLayer,
     ];

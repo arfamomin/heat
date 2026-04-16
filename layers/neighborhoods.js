@@ -207,6 +207,17 @@ export class NeighborhoodLayer {
             const centX = sumX / ptCount;
             const centY = sumY / ptCount;
 
+            // bounding radius: max distance from centroid to any ring vertex
+            let radius = 0;
+            polys.forEach(poly => {
+                poly[0].forEach(([lon, lat]) => {
+                    const x = (lon - offsetX) * geoScale;
+                    const y = (lat - offsetY) * geoScale;
+                    const d = Math.hypot(x - centX, y - centY);
+                    if (d > radius) radius = d;
+                });
+            });
+
             const el = document.createElement('div');
             el.className = 'neighborhood-label';
             el.textContent = name;
@@ -218,6 +229,7 @@ export class NeighborhoodLayer {
                 name,
                 centroidTractCode: this._findTractCode(centX, centY),
                 worldPos: new THREE.Vector3(centX, centY, 0),
+                radius,
             });
         });
 
@@ -250,19 +262,27 @@ export class NeighborhoodLayer {
             return;
         }
 
-        const showAll = camera.position.z < 3.5;
+        const matWorld = mapGroup.matrixWorld;
+        const _edge = new THREE.Vector3();
 
-        this._labels.forEach(({ el, name, worldPos }) => {
-            if (!showAll && name !== hoveredName) {
-                el.style.display = 'none';
-                return;
-            }
-
+        this._labels.forEach(({ el, name, worldPos, radius }) => {
             const vec = worldPos.clone();
-            vec.applyMatrix4(mapGroup.matrixWorld);
+            vec.applyMatrix4(matWorld);
             vec.project(camera);
 
             if (vec.z >= 1) { el.style.display = 'none'; return; }
+
+            // Project a point one radius away to measure apparent screen size
+            _edge.set(worldPos.x + radius, worldPos.y, worldPos.z);
+            _edge.applyMatrix4(matWorld);
+            _edge.project(camera);
+            const screenRadius = Math.abs((_edge.x - vec.x) / 2 * sizes.width);
+
+            const isHovered = name === hoveredName;
+            if (!isHovered && screenRadius < 30) {
+                el.style.display = 'none';
+                return;
+            }
 
             const x = ((vec.x + 1) / 2) * sizes.width;
             const y = ((-vec.y + 1) / 2) * sizes.height;
