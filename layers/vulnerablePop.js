@@ -37,4 +37,5 @@ export const vulnerablePopLayer = new Layer({
     minDepth: 0.01,
     maxDepth: 0.08,
     fetchData: fetchVulnerablePopData,
+    position: 'below',
 });

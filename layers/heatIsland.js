@@ -41,4 +41,5 @@ export const heatIslandLayer = new Layer({
     minDepth: 0.02,
     maxDepth: 0.15,
     fetchData: fetchHeatIslandData,
+    position: 'below',
 });

@@ -35,4 +35,5 @@ export const shadeLayer = new Layer({
     minDepth: 0.02,
     maxDepth: 0.15,
     fetchData: fetchShadeData,
+    position: 'above',
 });

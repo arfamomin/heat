@@ -17,9 +17,10 @@ export class Layer {
      * @param {() => Promise<Map<string, number>>} config.fetchData
      *   Async function returning Map<tractCode, rawValue>.
      */
-    constructor({ name, color, edgeColor, minDepth, maxDepth, fetchData }) {
+    constructor({ name, color, edgeColor, minDepth, maxDepth, fetchData, position = 'above' }) {
         this.name = name;
         this.color = color;
+        this.position = position; // 'above' | 'below'
         this.edgeColor = edgeColor ?? color;
         this.minDepth = minDepth;
         this.maxDepth = maxDepth;

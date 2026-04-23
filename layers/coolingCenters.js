@@ -1,7 +1,7 @@
 import { Layer } from '../Layer.js';
 
 const MILES_TO_KM = 1.60934;
-const RADIUS_KM = 5 * MILES_TO_KM;
+const RADIUS_KM = 2 * MILES_TO_KM;
 
 function haversineKm(lat1, lon1, lat2, lon2) {
     const R = 6371;
@@ -43,11 +43,12 @@ export function createCoolingCentersLayer(laFeatures) {
     }
 
     return new Layer({
-        name: 'Cooling Centers (5mi)',
-        color: 0x00b4d8,
-        edgeColor: 0x0077b6,
+        name: 'Cooling Centers',
+        color: 0x78C7EB,
+        edgeColor: 0x4F95B5,
         minDepth: 0.01,
         maxDepth: 0.08,
         fetchData: fetchCoolingCenterData,
+        position: 'above',
     });
 }

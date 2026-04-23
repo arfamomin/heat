@@ -158,6 +158,7 @@ buildMap(mapGroup).then(async ({ tracts, layers, laFeatures, geoBounds, geoScale
     mapLoaded = true;
     needsRender = true;
     buildLayersPanel(allLayers);
+    restack();
     initInset(laFeatures, geoBounds, geoScale);
 }).catch(err => {
     console.error('Failed to build map:', err);
@@ -165,14 +166,20 @@ buildMap(mapGroup).then(async ({ tracts, layers, laFeatures, geoBounds, geoScale
 
 function restack() {
     allTractMap.forEach((_, tractCode) => {
-        let z = BASE_DEPTH;
+        let zAbove = BASE_DEPTH;
+        let zBelow = 0;
         for (const layer of allLayers) {
-            const entry = layer.tractEntries.get(tractCode);
-            if (!entry) continue;
-            if (layer.visible) {
-                entry.meshes.forEach(m => { m.position.z = z; });
-                entry.lines.forEach(l => { l.position.z = z; });
-                z += entry.depth;
+            if (layer === neighborhoodLayer) continue;
+            const entry = layer.tractEntries?.get(tractCode);
+            if (!entry || !layer.visible) continue;
+            if (layer.position === 'below') {
+                zBelow -= entry.depth;
+                entry.meshes.forEach(m => { m.position.z = zBelow; });
+                entry.lines.forEach(l => { l.position.z = zBelow; });
+            } else {
+                entry.meshes.forEach(m => { m.position.z = zAbove; });
+                entry.lines.forEach(l => { l.position.z = zAbove; });
+                zAbove += entry.depth;
             }
         }
     });
@@ -180,59 +187,123 @@ function restack() {
     needsRender = true;
 }
 
-function buildLayersPanel(layers) {
-    const list = document.getElementById('layersList');
-    list.innerHTML = '';
+let draggedLayer = null;
 
-    layers.forEach((layer, index) => {
+function buildLayersPanel(layers) {
+    const body = document.getElementById('layersBody');
+    body.innerHTML = '';
+
+    const aboveLayers = layers.filter(l => l !== neighborhoodLayer && l.position === 'above');
+    const belowLayers = layers.filter(l => l !== neighborhoodLayer && l.position === 'below');
+
+    function makeLayerItem(layer, fixed = false) {
         const li = document.createElement('li');
         li.className = 'layer-item';
-        li.draggable = true;
+        if (!fixed) li.draggable = true;
         const hex = '#' + layer.color.toString(16).padStart(6, '0');
         li.innerHTML = `
             <span class="layer-swatch${layer.visible ? '' : ' layer-swatch--off'}" style="background:${hex}" title="Toggle layer"></span>
             <span class="layer-name">${layer.name}</span>`;
 
-        const swatch = li.querySelector('.layer-swatch');
-        swatch.addEventListener('click', () => {
+        li.querySelector('.layer-swatch').addEventListener('click', e => {
+            e.stopPropagation();
             const visible = !layer.visible;
             layer.setVisible(visible);
-            swatch.classList.toggle('layer-swatch--off', !visible);
+            li.querySelector('.layer-swatch').classList.toggle('layer-swatch--off', !visible);
             restack();
             if (layer === neighborhoodLayer && visible) flyToTopDown();
             if (layer === neighborhoodLayer && !visible) { isMapMoveEnabled = true; updateSpaceHint(); }
         });
 
+        if (fixed) return li;
+
         li.addEventListener('dragstart', e => {
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', String(index));
+            draggedLayer = layer;
             li.classList.add('dragging');
         });
-
         li.addEventListener('dragend', () => {
+            draggedLayer = null;
             li.classList.remove('dragging');
-            list.querySelectorAll('.layer-item').forEach(el => el.classList.remove('drag-over'));
+            body.querySelectorAll('.layer-item, .section-list').forEach(el =>
+                el.classList.remove('drag-over', 'drag-over-section'));
         });
-
         li.addEventListener('dragover', e => {
             e.preventDefault();
-            list.querySelectorAll('.layer-item').forEach(el => el.classList.remove('drag-over'));
-            li.classList.add('drag-over');
+            body.querySelectorAll('.layer-item').forEach(el => el.classList.remove('drag-over'));
+            if (draggedLayer !== layer) li.classList.add('drag-over');
         });
-
         li.addEventListener('drop', e => {
             e.preventDefault();
-            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
-            const toIndex = index;
-            if (fromIndex === toIndex) return;
-            const [moved] = allLayers.splice(fromIndex, 1);
-            allLayers.splice(toIndex, 0, moved);
+            e.stopPropagation();
+            if (!draggedLayer || draggedLayer === layer) return;
+
+            const toSection = layer.position;
+            draggedLayer.position = toSection;
+
+            const fromIdx = allLayers.indexOf(draggedLayer);
+            const toIdx   = allLayers.indexOf(layer);
+            if (fromIdx !== toIdx) {
+                allLayers.splice(fromIdx, 1);
+                allLayers.splice(allLayers.indexOf(layer), 0, draggedLayer);
+            }
             buildLayersPanel(allLayers);
             restack();
         });
 
-        list.appendChild(li);
-    });
+        return li;
+    }
+
+    function buildSection(sectionName, sectionLayers) {
+        const label = document.createElement('div');
+        label.className = 'section-label';
+        label.textContent = sectionName === 'above' ? 'Above' : 'Below';
+        body.appendChild(label);
+
+        const rule = document.createElement('div');
+        rule.className = 'section-rule';
+        body.appendChild(rule);
+
+        const ul = document.createElement('ul');
+        ul.className = 'section-list';
+        ul.dataset.section = sectionName;
+
+        sectionLayers.forEach(layer => ul.appendChild(makeLayerItem(layer)));
+
+        ul.addEventListener('dragover', e => {
+            e.preventDefault();
+            body.querySelectorAll('.layer-item').forEach(el => el.classList.remove('drag-over'));
+            ul.classList.add('drag-over-section');
+        });
+        ul.addEventListener('dragleave', e => {
+            if (!ul.contains(e.relatedTarget)) ul.classList.remove('drag-over-section');
+        });
+        ul.addEventListener('drop', e => {
+            e.preventDefault();
+            ul.classList.remove('drag-over-section');
+            if (!draggedLayer || e.target !== ul) return; // item-level drops handled above
+            draggedLayer.position = sectionName;
+            buildLayersPanel(allLayers);
+            restack();
+        });
+
+        body.appendChild(ul);
+    }
+
+    buildSection('above', aboveLayers);
+    buildSection('below', belowLayers);
+
+    // Fixed Neighborhoods row at bottom
+    if (neighborhoodLayer) {
+        const divider = document.createElement('div');
+        divider.className = 'section-fixed-divider';
+        body.appendChild(divider);
+
+        const ul = document.createElement('ul');
+        ul.className = 'section-list section-fixed';
+        ul.appendChild(makeLayerItem(neighborhoodLayer, true));
+        body.appendChild(ul);
+    }
 }
 
 const titleStates = [
@@ -250,9 +321,9 @@ highlightEl.addEventListener('mouseenter', () => {
 });
 
 const layersToggle = document.getElementById('layersToggle');
-const layersList   = document.getElementById('layersList');
+const layersBody   = document.getElementById('layersBody');
 layersToggle.addEventListener('click', () => {
-    const collapsed = layersList.classList.toggle('collapsed');
+    const collapsed = layersBody.classList.toggle('collapsed');
     layersToggle.textContent = collapsed ? '+' : '−';
 });
 
