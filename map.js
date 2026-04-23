@@ -3,6 +3,7 @@ import { Tract } from './Tract.js';
 import { shadeLayer } from './layers/shade.js';
 import { heatIslandLayer } from './layers/heatIsland.js';
 import { vulnerablePopLayer } from './layers/vulnerablePop.js';
+import { createCoolingCentersLayer } from './layers/coolingCenters.js';
 
 export const BASE_DEPTH = 0.05;
 
@@ -99,6 +100,7 @@ export async function buildMap(mapGroup) {
         vulnerablePopLayer,
         shadeLayer,
         heatIslandLayer,
+        createCoolingCentersLayer(laFeatures),
     ];
 
     for (const layer of layers) {
