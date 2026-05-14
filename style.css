@@ -97,11 +97,169 @@ canvas.webgl {
     height: calc(100vh - 52px);
 }
 
-#layers-panel {
+/* ── Neighborhoods panel ──────────────────────────────────────── */
+
+#left-panels {
     position: fixed;
     bottom: 28px;
     left: 24px;
     z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+    width: 220px;
+}
+
+#nbhd-panel {
+    width: 220px;
+    background: #ffffff;
+    border: 1.5px solid #2a2a2a;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.nbhd-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+}
+
+.nbhd-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111;
+}
+
+.nbhd-toggle {
+    background: none;
+    border: none;
+    font-size: 20px;
+    font-weight: 400;
+    color: #111;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 2px;
+}
+
+#nbhdBody {
+    border-top: 1.5px solid #2a2a2a;
+}
+
+.nbhd-body--collapsed {
+    display: none;
+}
+
+.nbhd-search {
+    display: block;
+    width: 100%;
+    padding: 6px 14px;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 12px;
+    color: #555;
+    background: #f0f0f0;
+    border: none;
+    border-bottom: 1px solid #ddd;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.nbhd-search::placeholder {
+    color: #999;
+}
+
+.nbhd-col-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 5px 14px 3px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.nbhd-include-label {
+    font-size: 11px;
+    color: #999;
+}
+
+.nbhd-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 99px; /* 3 rows × 33px */
+    overflow-y: auto;
+}
+
+.nbhd-list::-webkit-scrollbar {
+    width: 6px;
+}
+.nbhd-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+.nbhd-list::-webkit-scrollbar-thumb {
+    background: #bbb;
+    border-radius: 3px;
+}
+
+.nbhd-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #ebebeb;
+    transition: background 0.15s;
+}
+
+.nbhd-row:last-child {
+    border-bottom: none;
+}
+
+.nbhd-row:hover {
+    background: #f5f5f5;
+}
+
+.nbhd-row--selected {
+    background: var(--highlight-color);
+    transition: background 0.3s;
+}
+
+.nbhd-row--selected:hover {
+    background: var(--highlight-color);
+    filter: brightness(0.93);
+}
+
+.nbhd-name {
+    font-size: 13px;
+    color: #222;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nbhd-checkbox {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    border: 1.5px solid #aaa;
+    border-radius: 2px;
+    background: #fff;
+    margin-left: 10px;
+}
+
+.nbhd-row--selected .nbhd-checkbox {
+    border-color: #5a8a00;
+}
+
+.nbhd-checkbox--included {
+    background: #111;
+    border-color: #111;
+}
+
+/* ── Layers panel ─────────────────────────────────────────────── */
+
+#layers-panel {
     width: 220px;
     background: #ffffff;
     border: 1.5px solid #2a2a2a;
@@ -227,6 +385,19 @@ canvas.webgl {
     text-shadow: 0 0 4px rgba(255,255,255,0.85), 0 0 4px rgba(255,255,255,0.85);
 }
 
+.lede-label {
+    position: fixed;
+    pointer-events: none;
+    z-index: 150;
+    transform: translate(-50%, calc(-100% - 1px));
+    font-family: 'Open Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: #111;
+    white-space: nowrap;
+    text-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 4px rgba(255,255,255,0.9);
+}
+
 .header-right {
     display: flex;
     align-items: center;
@@ -312,6 +483,7 @@ canvas.webgl {
     font-weight: 600;
     color: #111;
 }
+
 
 .inset-la-region {
     fill: var(--highlight-color);

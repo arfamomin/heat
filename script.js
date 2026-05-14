@@ -3,6 +3,8 @@ import { buildMap, BASE_DEPTH } from './map.js';
 import { showTooltip, hideTooltip } from './tooltip.js';
 import { initInset, updateInset } from './inset.js';
 import { NeighborhoodLayer } from './layers/neighborhoods.js';
+import { LedesLayer } from './layers/ledes.js';
+import { initNeighborhoodsPanel } from './neighborhoods-panel.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
@@ -50,6 +52,8 @@ const ZOOM_MAX = 20;
 const ZOOM_SPEED = 0.002;
 
 let neighborhoodLayer = null;
+let ledesLayer = null;
+let neighborhoodsPanel = null;
 let hoveredNeighborhood = null;
 let flyingToTop = false;
 
@@ -104,6 +108,7 @@ let allMeshes = [];
 
 function selectTract(tractCode, clientX, clientY) {
     selectedTractCode = tractCode;
+    neighborhoodsPanel?.clearSelection();
     allTractMap.forEach((tract, code) => {
         tract.setOpacity(code === tractCode ? 1.0 : 0.02);
     });
@@ -117,6 +122,16 @@ function clearSelection() {
     allTractMap.forEach(tract => tract.setOpacity(1.0));
     if (neighborhoodLayer) neighborhoodLayer.setOpacity(1.0);
     hideTooltip();
+    needsRender = true;
+}
+
+function selectNeighborhoodTracts(tractCodes) {
+    selectedTractCode = null;
+    hideTooltip();
+    allTractMap.forEach((tract, code) => {
+        tract.setOpacity(tractCodes.has(code) ? 1.0 : 0.02);
+    });
+    if (neighborhoodLayer) neighborhoodLayer.setOpacity(0.02);
     needsRender = true;
 }
 
@@ -152,14 +167,30 @@ buildMap(mapGroup).then(async ({ tracts, layers, laFeatures, geoBounds, geoScale
 
     neighborhoodLayer = new NeighborhoodLayer();
     await neighborhoodLayer.load();
-    neighborhoodLayer.build(mapGroup, geoScale, geoOffset, tracts, layers, BASE_DEPTH);
-    allLayers.push(neighborhoodLayer);
+    neighborhoodLayer.buildIndex(tracts);
+    // not pushed to allLayers — kept only for ledes spatial lookup
+
+    ledesLayer = new LedesLayer();
+    ledesLayer.build(
+        mapGroup, geoScale, geoOffset, tracts,
+        neighborhoodLayer._geojson,
+        (x, y) => neighborhoodLayer._findTractCode(x, y),
+        layers, BASE_DEPTH
+    );
 
     mapLoaded = true;
     needsRender = true;
     buildLayersPanel(allLayers);
     restack();
     initInset(laFeatures, geoBounds, geoScale);
+
+    neighborhoodsPanel = await initNeighborhoodsPanel({
+        laFeatures,
+        onSelect:        (tractCodes) => selectNeighborhoodTracts(tractCodes),
+        onDeselect:      () => clearSelection(),
+        onInclude:       (name, included) => ledesLayer?.setLedeIncluded(name, included),
+        isLedeIncluded:  (name) => ledesLayer?.isLedeIncluded(name) ?? false,
+    });
 }).catch(err => {
     console.error('Failed to build map:', err);
 });
@@ -184,6 +215,7 @@ function restack() {
         }
     });
     if (neighborhoodLayer) neighborhoodLayer.updateOutlineHeights(allLayers);
+    if (ledesLayer) ledesLayer.updateOutlineHeights(allLayers);
     needsRender = true;
 }
 
@@ -293,15 +325,15 @@ function buildLayersPanel(layers) {
     buildSection('above', aboveLayers);
     buildSection('below', belowLayers);
 
-    // Fixed Neighborhoods row at bottom
-    if (neighborhoodLayer) {
+    // Fixed rows at bottom (Ledes only — Neighborhoods layer hidden)
+    if (ledesLayer) {
         const divider = document.createElement('div');
         divider.className = 'section-fixed-divider';
         body.appendChild(divider);
 
         const ul = document.createElement('ul');
         ul.className = 'section-list section-fixed';
-        ul.appendChild(makeLayerItem(neighborhoodLayer, true));
+        ul.appendChild(makeLayerItem(ledesLayer, true));
         body.appendChild(ul);
     }
 }
@@ -346,6 +378,7 @@ const tick = () => {
     if (needsRender) {
         renderer.render(scene, camera);
         if (neighborhoodLayer) neighborhoodLayer.updateLabels(camera, mapGroup, sizes, hoveredNeighborhood);
+        if (ledesLayer) ledesLayer.updateLabels(camera, mapGroup, canvas);
         updateInset(camera);
         needsRender = false;
     }

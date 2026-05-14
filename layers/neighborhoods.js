@@ -133,6 +133,13 @@ export class NeighborhoodLayer {
         this._applyTopZ(this._computeTopZPerTract(dataLayers));
     }
 
+    // ─── spatial-index-only init (no rendering) ───────────────────────────────
+
+    buildIndex(tracts) {
+        this._tracts = tracts;
+        this._buildGrid(tracts);
+    }
+
     // ─── build ────────────────────────────────────────────────────────────────
 
     build(mapGroup, geoScale, geoOffset, tracts, dataLayers, baseDepth) {

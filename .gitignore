@@ -1,3 +1,4 @@
 node_modules/
 .DS_Store
 data/shade/tree_data.geojson
+public/data/data/shade/tree_data.geojson
