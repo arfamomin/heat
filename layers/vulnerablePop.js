@@ -38,4 +38,6 @@ export const vulnerablePopLayer = new Layer({
     maxDepth: 0.08,
     fetchData: fetchVulnerablePopData,
     position: 'below',
+    unit: '%',
+    description: 'Share of residents aged 65 and older, who face elevated health risks and reduced heat resilience during extreme heat events.',
 });

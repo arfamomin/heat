@@ -177,6 +177,7 @@ buildMap(mapGroup).then(async ({ tracts, layers, laFeatures, geoBounds, geoScale
         (x, y) => neighborhoodLayer._findTractCode(x, y),
         layers, BASE_DEPTH
     );
+    ledesLayer.setVisible(false);
 
     mapLoaded = true;
     needsRender = true;
@@ -203,14 +204,15 @@ function restack() {
             if (layer === neighborhoodLayer) continue;
             const entry = layer.tractEntries?.get(tractCode);
             if (!entry || !layer.visible) continue;
+            const effectiveDepth = entry.depth * (layer.depthScale ?? 1);
             if (layer.position === 'below') {
-                zBelow -= entry.depth;
+                zBelow -= effectiveDepth;
                 entry.meshes.forEach(m => { m.position.z = zBelow; });
                 entry.lines.forEach(l => { l.position.z = zBelow; });
             } else {
                 entry.meshes.forEach(m => { m.position.z = zAbove; });
                 entry.lines.forEach(l => { l.position.z = zAbove; });
-                zAbove += entry.depth;
+                zAbove += effectiveDepth;
             }
         }
     });
@@ -220,35 +222,175 @@ function restack() {
 }
 
 let draggedLayer = null;
+let activeInfoBtn = null;
+let infoPopover = null;
+
+function showLayerInfo(btn, description) {
+    if (!infoPopover) {
+        infoPopover = document.createElement('div');
+        infoPopover.id = 'layer-info-popover';
+        document.body.appendChild(infoPopover);
+    }
+    if (activeInfoBtn === btn) {
+        btn.classList.remove('active');
+        activeInfoBtn = null;
+        infoPopover.style.display = 'none';
+        return;
+    }
+    if (activeInfoBtn) activeInfoBtn.classList.remove('active');
+    activeInfoBtn = btn;
+    btn.classList.add('active');
+    infoPopover.textContent = description;
+    const panelRect = document.getElementById('layers-panel').getBoundingClientRect();
+    const btnRect   = btn.getBoundingClientRect();
+    infoPopover.style.display = 'block';
+    infoPopover.style.left    = (panelRect.right + 10) + 'px';
+    infoPopover.style.top     = btnRect.top + 'px';
+}
 
 function buildLayersPanel(layers) {
     const body = document.getElementById('layersBody');
     body.innerHTML = '';
+    const scroll = document.createElement('div');
+    scroll.className = 'layers-scroll';
+    body.appendChild(scroll);
+
+    // Close any open popover when panel rebuilds (layer reorder)
+    if (activeInfoBtn) { activeInfoBtn.classList.remove('active'); activeInfoBtn = null; }
+    if (infoPopover) infoPopover.style.display = 'none';
 
     const aboveLayers = layers.filter(l => l !== neighborhoodLayer && l.position === 'above');
     const belowLayers = layers.filter(l => l !== neighborhoodLayer && l.position === 'below');
+
+    function fmtMin(v) { return Number.isFinite(v) ? Math.round(v).toLocaleString() : ''; }
+    function fmtMax(v, unit) { return Number.isFinite(v) ? Math.round(v).toLocaleString() + (unit ? ' ' + unit : '') : ''; }
 
     function makeLayerItem(layer, fixed = false) {
         const li = document.createElement('li');
         li.className = 'layer-item';
         if (!fixed) li.draggable = true;
         const hex = '#' + layer.color.toString(16).padStart(6, '0');
-        li.innerHTML = `
-            <span class="layer-swatch${layer.visible ? '' : ' layer-swatch--off'}" style="background:${hex}" title="Toggle layer"></span>
-            <span class="layer-name">${layer.name}</span>`;
 
-        li.querySelector('.layer-swatch').addEventListener('click', e => {
+        // ── main row ──────────────────────────────────────────────
+        const mainRow = document.createElement('div');
+        mainRow.className = 'layer-main-row';
+
+        const swatch = document.createElement('span');
+        swatch.className = 'layer-swatch' + (layer.visible ? '' : ' layer-swatch--off');
+        swatch.style.background = hex;
+        swatch.title = 'Toggle layer';
+        swatch.addEventListener('click', e => {
             e.stopPropagation();
             const visible = !layer.visible;
             layer.setVisible(visible);
-            li.querySelector('.layer-swatch').classList.toggle('layer-swatch--off', !visible);
+            swatch.classList.toggle('layer-swatch--off', !visible);
             restack();
             if (layer === neighborhoodLayer && visible) flyToTopDown();
             if (layer === neighborhoodLayer && !visible) { isMapMoveEnabled = true; updateSpaceHint(); }
         });
+        mainRow.appendChild(swatch);
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'layer-name';
+        nameEl.textContent = layer.name;
+        mainRow.appendChild(nameEl);
+
+        if (!fixed && layer.description) {
+            const infoBtn = document.createElement('button');
+            infoBtn.className = 'layer-info-btn';
+            infoBtn.title = 'About this layer';
+            infoBtn.textContent = 'i';
+            infoBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                showLayerInfo(infoBtn, layer.description);
+            });
+            mainRow.appendChild(infoBtn);
+        }
+
+        li.appendChild(mainRow);
+
+        // ── slider row (data layers only) ─────────────────────────
+        if (!fixed && layer.unit !== undefined && layer.dataMax > 0) {
+            const collapseBtn = document.createElement('button');
+            collapseBtn.className = 'layer-collapse-btn';
+            collapseBtn.title = 'Toggle depth control';
+            collapseBtn.innerHTML = '<svg width="10" height="7" viewBox="0 0 10 7" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            mainRow.appendChild(collapseBtn);
+
+            const sliderRow = document.createElement('div');
+            sliderRow.className = 'layer-slider-row';
+
+            collapseBtn.classList.add('collapsed');
+            sliderRow.style.display = 'none';
+
+            collapseBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                const collapsed = collapseBtn.classList.toggle('collapsed');
+                sliderRow.style.display = collapsed ? 'none' : '';
+            });
+
+            const track = document.createElement('div');
+            track.className = 'layer-track';
+
+            const trackLine = document.createElement('div');
+            trackLine.className = 'layer-track-line';
+            track.appendChild(trackLine);
+
+            trackLine.style.width = (layer.depthScale * 100) + '%';
+
+            const handle = document.createElement('div');
+            handle.className = 'layer-track-handle';
+            handle.style.left = (layer.depthScale * 100) + '%';
+            track.appendChild(handle);
+
+            sliderRow.appendChild(track);
+
+            const rangeLabels = document.createElement('div');
+            rangeLabels.className = 'layer-range-labels';
+
+            const minLabel = document.createElement('span');
+            minLabel.className = 'layer-range-min';
+            minLabel.textContent = fmtMin(layer.dataMin);
+            rangeLabels.appendChild(minLabel);
+
+            const maxLabel = document.createElement('span');
+            maxLabel.className = 'layer-range-max';
+            maxLabel.textContent = fmtMax(layer.dataMax, layer.unit);
+            maxLabel.style.left = (layer.depthScale * 100) + '%';
+            rangeLabels.appendChild(maxLabel);
+
+            sliderRow.appendChild(rangeLabels);
+
+            li.appendChild(sliderRow);
+
+            handle.addEventListener('mousedown', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                li.draggable = false;
+
+                const onMove = ev => {
+                    const rect = track.getBoundingClientRect();
+                    const fraction = Math.max(0.05, Math.min(1, (ev.clientX - rect.left) / rect.width));
+                    handle.style.left = (fraction * 100) + '%';
+                    trackLine.style.width = (fraction * 100) + '%';
+                    maxLabel.style.left = (fraction * 100) + '%';
+                    layer.setDepthScale(fraction);
+                    restack();
+                    needsRender = true;
+                };
+                const onUp = () => {
+                    li.draggable = true;
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+        }
 
         if (fixed) return li;
 
+        // ── drag-to-reorder ───────────────────────────────────────
         li.addEventListener('dragstart', e => {
             e.dataTransfer.effectAllowed = 'move';
             draggedLayer = layer;
@@ -269,10 +411,7 @@ function buildLayersPanel(layers) {
             e.preventDefault();
             e.stopPropagation();
             if (!draggedLayer || draggedLayer === layer) return;
-
-            const toSection = layer.position;
-            draggedLayer.position = toSection;
-
+            draggedLayer.position = layer.position;
             const fromIdx = allLayers.indexOf(draggedLayer);
             const toIdx   = allLayers.indexOf(layer);
             if (fromIdx !== toIdx) {
@@ -290,11 +429,11 @@ function buildLayersPanel(layers) {
         const label = document.createElement('div');
         label.className = 'section-label';
         label.textContent = sectionName === 'above' ? 'Above' : 'Below';
-        body.appendChild(label);
+        scroll.appendChild(label);
 
         const rule = document.createElement('div');
         rule.className = 'section-rule';
-        body.appendChild(rule);
+        scroll.appendChild(rule);
 
         const ul = document.createElement('ul');
         ul.className = 'section-list';
@@ -304,7 +443,7 @@ function buildLayersPanel(layers) {
 
         ul.addEventListener('dragover', e => {
             e.preventDefault();
-            body.querySelectorAll('.layer-item').forEach(el => el.classList.remove('drag-over'));
+            scroll.querySelectorAll('.layer-item').forEach(el => el.classList.remove('drag-over'));
             ul.classList.add('drag-over-section');
         });
         ul.addEventListener('dragleave', e => {
@@ -313,28 +452,27 @@ function buildLayersPanel(layers) {
         ul.addEventListener('drop', e => {
             e.preventDefault();
             ul.classList.remove('drag-over-section');
-            if (!draggedLayer || e.target !== ul) return; // item-level drops handled above
+            if (!draggedLayer || e.target !== ul) return;
             draggedLayer.position = sectionName;
             buildLayersPanel(allLayers);
             restack();
         });
 
-        body.appendChild(ul);
+        scroll.appendChild(ul);
     }
 
     buildSection('above', aboveLayers);
     buildSection('below', belowLayers);
 
-    // Fixed rows at bottom (Ledes only — Neighborhoods layer hidden)
     if (ledesLayer) {
         const divider = document.createElement('div');
         divider.className = 'section-fixed-divider';
-        body.appendChild(divider);
+        scroll.appendChild(divider);
 
         const ul = document.createElement('ul');
         ul.className = 'section-list section-fixed';
         ul.appendChild(makeLayerItem(ledesLayer, true));
-        body.appendChild(ul);
+        scroll.appendChild(ul);
     }
 }
 
@@ -355,6 +493,8 @@ highlightEl.addEventListener('mouseenter', () => {
 
 const layersToggle = document.getElementById('layersToggle');
 const layersBody   = document.getElementById('layersBody');
+layersBody.classList.add('collapsed');
+layersToggle.textContent = '+';
 layersToggle.addEventListener('click', () => {
     const collapsed = layersBody.classList.toggle('collapsed');
     layersToggle.textContent = collapsed ? '+' : '−';

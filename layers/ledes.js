@@ -40,7 +40,7 @@ function resolveTractCode(name, centX, centY, polys, offsetX, offsetY, geoScale,
 
 export class LedesLayer {
     constructor() {
-        this.name = 'Ledes';
+        this.name = 'Neighborhoods';
         this.color = 0x111111;
         this.visible = true;
         this.tractEntries = new Map();
@@ -134,7 +134,7 @@ export class LedesLayer {
                 if (layer.position !== 'above') continue;
                 const entry = layer.tractEntries.get(lede.centroidTractCode);
                 if (!entry || !layer.visible) continue;
-                z += entry.depth;
+                z += entry.depth * (layer.depthScale ?? 1);
             }
             z += OUTLINE_EPSILON;
             lede.positions[2] = z;

@@ -7,31 +7,26 @@ function normalizeValue(value, min, max) {
 }
 
 export class Layer {
-    /**
-     * @param {object} config
-     * @param {string} config.name         Display name
-     * @param {number} config.color        Hex color for faces
-     * @param {number} [config.edgeColor]  Hex color for edges (defaults to color)
-     * @param {number} config.minDepth     Min extrusion depth (lowest-value tracts)
-     * @param {number} config.maxDepth     Max extrusion depth (highest-value tracts)
-     * @param {() => Promise<Map<string, number>>} config.fetchData
-     *   Async function returning Map<tractCode, rawValue>.
-     */
-    constructor({ name, color, edgeColor, minDepth, maxDepth, fetchData, position = 'above' }) {
+    constructor({ name, color, edgeColor, minDepth, maxDepth, fetchData, position = 'above', unit = '', description = '' }) {
         this.name = name;
         this.color = color;
-        this.position = position; // 'above' | 'below'
+        this.position = position;
         this.edgeColor = edgeColor ?? color;
         this.minDepth = minDepth;
         this.maxDepth = maxDepth;
         this.fetchData = fetchData;
+        this.unit = unit;
+        this.description = description;
 
-        this.depthByTract = new Map(); // tractCode -> computed extrusion depth
-        this.rawByTract = new Map();   // tractCode -> original data value (for tooltip)
+        this.depthByTract = new Map();
+        this.rawByTract = new Map();
         this.meshes = [];
         this.lines = [];
         this.visible = true;
-        this.tractEntries = new Map(); // tractCode -> { meshes, lines, depth }
+        this.tractEntries = new Map();
+        this.depthScale = 0.75;
+        this.dataMin = 0;
+        this.dataMax = 0;
 
         this.material = new THREE.MeshPhongMaterial({
             color: this.color,
@@ -46,7 +41,6 @@ export class Layer {
         });
     }
 
-    // Fetches data and pre-computes the extrusion depth for each tract.
     async load() {
         const rawMap = await this.fetchData();
 
@@ -55,6 +49,8 @@ export class Layer {
 
         const min = Math.min(...values);
         const max = Math.max(...values);
+        this.dataMin = min;
+        this.dataMax = max;
 
         rawMap.forEach((value, tractCode) => {
             this.rawByTract.set(tractCode, value);
@@ -63,9 +59,6 @@ export class Layer {
         });
     }
 
-    // Calls tract.addLayer() for every tract that has data for this layer.
-    // Must be called after load() and after all preceding layers have been built,
-    // so that each tract's currentZ is already at the correct stacking height.
     build(tracts) {
         tracts.forEach((tract, tractCode) => {
             const depth = this.depthByTract.get(tractCode);
@@ -76,6 +69,15 @@ export class Layer {
             this.lines.push(...lines);
             this.tractEntries.set(tractCode, { meshes, lines, depth });
         });
+        this.setDepthScale(this.depthScale);
+    }
+
+    // Scale the visual extrusion height (0.05–1.0). Meshes scale in-place;
+    // restack() must be called afterward to reposition dependent layers.
+    setDepthScale(scale) {
+        this.depthScale = Math.max(0.05, Math.min(1, scale));
+        this.meshes.forEach(m => { m.scale.z = this.depthScale; });
+        this.lines.forEach(l => { l.scale.z = this.depthScale; });
     }
 
     setVisible(visible) {

@@ -50,5 +50,7 @@ export function createCoolingCentersLayer(laFeatures) {
         maxDepth: 0.08,
         fetchData: fetchCoolingCenterData,
         position: 'above',
+        unit: 'locations',
+        description: 'Number of publicly designated cooling centers within 2 miles of a tract, indicating access to heat relief during extreme events.',
     });
 }

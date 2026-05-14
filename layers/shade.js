@@ -9,13 +9,13 @@ async function fetchShadeData() {
     geojson.features.forEach(feature => {
         const props = feature.properties ?? {};
         const geoid = String(props.GEOID ?? '');
-        const value = Number(props._bld1200);
+        const value = Number(props.treecanopy);
 
         if (!Number.isFinite(value) || geoid.length < 11 || !geoid.startsWith('06037')) return;
 
         const tractCode = geoid.slice(5, 11);
         const entry = accumulator.get(tractCode) ?? { sum: 0, count: 0 };
-        entry.sum += value;
+        entry.sum += value * 100;
         entry.count += 1;
         accumulator.set(tractCode, entry);
     });
@@ -36,4 +36,6 @@ export const shadeLayer = new Layer({
     maxDepth: 0.15,
     fetchData: fetchShadeData,
     position: 'above',
+    unit: '%',
+    description: 'Percent of building footprint covered by tree canopy at midday, a key indicator of neighborhood cooling from urban greenery.',
 });

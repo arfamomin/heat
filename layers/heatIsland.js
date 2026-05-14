@@ -42,4 +42,6 @@ export const heatIslandLayer = new Layer({
     maxDepth: 0.15,
     fetchData: fetchHeatIslandData,
     position: 'below',
+    unit: 'UHII',
+    description: 'Urban Heat Island Intensity measures how much hotter a tract runs compared to surrounding rural areas during a typical summer day.',
 });
