@@ -307,17 +307,18 @@ function buildLayersPanel(layers) {
 }
 
 const titleStates = [
-    { text: 'Reimagined',   cls: ''        },
-    { text: 'Paradoxical',  cls: 'state-1' },
-    { text: 'Multifaceted', cls: 'state-2' },
+    { text: 'Reimagined',   cls: '',        color: '#C2EB66' },
+    { text: 'Paradoxical',  cls: 'state-1', color: '#ff96fb' },
+    { text: 'Multifaceted', cls: 'state-2', color: '#fcba03' },
 ];
 let titleIndex = 0;
 const highlightEl = document.querySelector('.header-title .highlight');
 highlightEl.addEventListener('mouseenter', () => {
     titleIndex = (titleIndex + 1) % titleStates.length;
-    const { text, cls } = titleStates[titleIndex];
+    const { text, cls, color } = titleStates[titleIndex];
     highlightEl.textContent = text;
     highlightEl.className = 'highlight' + (cls ? ' ' + cls : '');
+    document.documentElement.style.setProperty('--highlight-color', color);
 });
 
 const layersToggle = document.getElementById('layersToggle');
