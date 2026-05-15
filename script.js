@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import { buildMap, BASE_DEPTH } from './map.js';
+import { Layer } from './Layer.js';
 import { showTooltip, hideTooltip } from './tooltip.js';
 import { initInset, updateInset } from './inset.js';
 import { NeighborhoodLayer } from './layers/neighborhoods.js';
 import { LedesLayer } from './layers/ledes.js';
 import { initNeighborhoodsPanel } from './neighborhoods-panel.js';
+import { createAddLayerButton } from './add-layer-panel.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
@@ -240,6 +242,27 @@ function restack() {
     if (neighborhoodLayer) neighborhoodLayer.updateOutlineHeights(allLayers);
     if (ledesLayer) ledesLayer.updateOutlineHeights(allLayers);
     needsRender = true;
+}
+
+async function addCustomLayer({ tractMap, name, colorHex, unit, description }) {
+    const colorInt = parseInt(colorHex.slice(1), 16);
+    const layer = new Layer({
+        name,
+        color: colorInt,
+        edgeColor: colorInt,
+        minDepth: 0.02,
+        maxDepth: 0.15,
+        fetchData: async () => tractMap,
+        position: 'above',
+        unit,
+        description,
+    });
+    await layer.load();
+    layer.build(allTractMap);
+    allMeshes = [...allTractMap.values()].flatMap(t => t.allMeshes);
+    allLayers.push(layer);
+    buildLayersPanel(allLayers);
+    restack();
 }
 
 let draggedLayer = null;
@@ -495,6 +518,8 @@ function buildLayersPanel(layers) {
         ul.appendChild(makeLayerItem(ledesLayer, true));
         scroll.appendChild(ul);
     }
+
+    body.appendChild(createAddLayerButton({ onAdd: addCustomLayer }));
 }
 
 const titleStates = [
