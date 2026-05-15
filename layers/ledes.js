@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const DEFAULT_INCLUDED = new Set(['Westwood', 'Northridge', 'Hollywood', 'Westlake']);
+const DEFAULT_INCLUDED = new Set([]);
 const LINE_HEIGHT = 0.12;
 const OUTLINE_EPSILON = 0.008;
 
@@ -58,10 +58,9 @@ export class LedesLayer {
         this._tracts = tracts;
         this._baseDepth = baseDepth;
 
-        const lineMaterial = new THREE.LineBasicMaterial({
-            color: 0x111111,
-            depthTest: true,
-        });
+        this._normalMat = new THREE.LineBasicMaterial({ color: 0x111111, depthTest: true });
+        this._dimMat    = new THREE.LineBasicMaterial({ color: 0xcccccc, depthTest: true });
+        const lineMaterial = this._normalMat;
 
         const pureDataLayers = dataLayers.filter(l => l.tractEntries && l.tractEntries.size > 0);
 
@@ -181,6 +180,14 @@ export class LedesLayer {
             el.style.display = 'block';
             el.style.left = x + 'px';
             el.style.top  = y + 'px';
+        });
+    }
+
+    setFocus(name) {
+        this._ledes.forEach(lede => {
+            const dim = name !== null && lede.name !== name;
+            lede.line.material = dim ? this._dimMat : this._normalMat;
+            lede.el.style.opacity = dim ? '0.25' : '';
         });
     }
 

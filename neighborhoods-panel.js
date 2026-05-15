@@ -103,7 +103,7 @@ export async function initNeighborhoodsPanel({ laFeatures, onSelect, onDeselect,
                     selectedName = name;
                     list.querySelectorAll('.nbhd-row--selected').forEach(el => el.classList.remove('nbhd-row--selected'));
                     li.classList.add('nbhd-row--selected');
-                    onSelect(nbhdToTracts.get(name));
+                    onSelect(nbhdToTracts.get(name), name);
                     // Auto-include the lede when selecting a neighborhood
                     if (!isLedeIncluded(name)) {
                         onInclude(name, true);
@@ -129,14 +129,22 @@ export async function initNeighborhoodsPanel({ laFeatures, onSelect, onDeselect,
     toggleBtn.addEventListener('click', () => {
         const collapsed = body.classList.toggle('nbhd-body--collapsed');
         toggleBtn.textContent = collapsed ? '+' : '−';
+        panel.classList.toggle('panel-open', !collapsed);
+        document.getElementById('left-panels').classList.toggle('nbhd-open', !collapsed);
     });
 
     searchEl.addEventListener('input', () => renderList(searchEl.value));
+
+    const tractToNbhd = new Map();
+    nbhdToTracts.forEach((tractCodes, name) => {
+        tractCodes.forEach(code => tractToNbhd.set(code, name));
+    });
 
     return {
         clearSelection() {
             selectedName = null;
             list.querySelectorAll('.nbhd-row--selected').forEach(el => el.classList.remove('nbhd-row--selected'));
         },
+        tractToNbhd,
     };
 }

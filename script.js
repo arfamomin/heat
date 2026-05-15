@@ -55,6 +55,7 @@ let neighborhoodLayer = null;
 let ledesLayer = null;
 let neighborhoodsPanel = null;
 let hoveredNeighborhood = null;
+let tractToNbhd = null;
 let flyingToTop = false;
 
 function updateSpaceHint() {
@@ -113,6 +114,7 @@ function selectTract(tractCode, clientX, clientY) {
         tract.setOpacity(code === tractCode ? 1.0 : 0.02);
     });
     if (neighborhoodLayer) neighborhoodLayer.setOpacity(0.02);
+    ledesLayer?.setFocus(tractToNbhd?.get(tractCode) ?? null);
     showTooltip(tractCode, allLayers, clientX, clientY);
     needsRender = true;
 }
@@ -121,6 +123,7 @@ function clearSelection() {
     selectedTractCode = null;
     allTractMap.forEach(tract => tract.setOpacity(1.0));
     if (neighborhoodLayer) neighborhoodLayer.setOpacity(1.0);
+    ledesLayer?.setFocus(null);
     hideTooltip();
     needsRender = true;
 }
@@ -185,13 +188,31 @@ buildMap(mapGroup).then(async ({ tracts, layers, laFeatures, geoBounds, geoScale
     restack();
     initInset(laFeatures, geoBounds, geoScale);
 
-    neighborhoodsPanel = await initNeighborhoodsPanel({
+    const panel = await initNeighborhoodsPanel({
         laFeatures,
-        onSelect:        (tractCodes) => selectNeighborhoodTracts(tractCodes),
-        onDeselect:      () => clearSelection(),
-        onInclude:       (name, included) => ledesLayer?.setLedeIncluded(name, included),
+        onSelect: (tractCodes, name) => {
+            selectNeighborhoodTracts(tractCodes);
+            ledesLayer?.setFocus(name);
+            needsRender = true;
+        },
+        onDeselect: () => {
+            clearSelection();
+            ledesLayer?.setFocus(null);
+            needsRender = true;
+        },
+        onInclude: (name, included) => {
+            ledesLayer?.setLedeIncluded(name, included);
+            if (included && ledesLayer && !ledesLayer.visible) {
+                ledesLayer.setVisible(true);
+                needsRender = true;
+                const swatch = document.querySelector('.section-fixed .layer-swatch');
+                if (swatch) swatch.classList.remove('layer-swatch--off');
+            }
+        },
         isLedeIncluded:  (name) => ledesLayer?.isLedeIncluded(name) ?? false,
     });
+    neighborhoodsPanel = panel;
+    tractToNbhd = panel.tractToNbhd;
 }).catch(err => {
     console.error('Failed to build map:', err);
 });
@@ -495,9 +516,13 @@ const layersToggle = document.getElementById('layersToggle');
 const layersBody   = document.getElementById('layersBody');
 layersBody.classList.add('collapsed');
 layersToggle.textContent = '+';
+const layersPanel   = document.getElementById('layers-panel');
+const leftPanelsEl  = document.getElementById('left-panels');
 layersToggle.addEventListener('click', () => {
     const collapsed = layersBody.classList.toggle('collapsed');
     layersToggle.textContent = collapsed ? '+' : '−';
+    layersPanel.classList.toggle('panel-open', !collapsed);
+    leftPanelsEl.classList.toggle('layers-open', !collapsed);
 });
 
 const tick = () => {

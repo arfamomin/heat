@@ -18,7 +18,7 @@ export function showTooltip(tractCode, layers, clientX, clientY) {
                 <div class="tooltip-row">
                     <span class="tooltip-swatch" style="background:${colorToHex(layer.color)}"></span>
                     <span class="tooltip-label">${layer.name}</span>
-                    <span class="tooltip-value">${value.toFixed(2)}</span>
+                    <span class="tooltip-value">${value.toFixed(2)}${layer.unit ? ' ' + layer.unit : ''}</span>
                 </div>`;
         });
     }

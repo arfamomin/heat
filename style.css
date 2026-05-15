@@ -107,8 +107,10 @@ canvas.webgl {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    align-items: stretch;
     width: 250px;
+    height: calc(100vh - 108px);
+    justify-content: flex-end;
+    pointer-events: none;
 }
 
 #nbhd-panel {
@@ -117,6 +119,22 @@ canvas.webgl {
     border: 1.5px solid #2a2a2a;
     border-radius: 10px;
     overflow: hidden;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+}
+
+/* Neighborhoods open, layers closed */
+#left-panels.nbhd-open #nbhd-panel {
+    flex: 0 1 auto;
+    max-height: calc((100vh - 108px) * 0.75);
+}
+
+/* Both open: neighborhoods fills remaining space above layers */
+#left-panels.nbhd-open.layers-open #nbhd-panel {
+    flex: 1 1 0;
+    min-height: 0;
 }
 
 .nbhd-header {
@@ -145,9 +163,14 @@ canvas.webgl {
 
 #nbhdBody {
     border-top: 1.5px solid #2a2a2a;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-.nbhd-body--collapsed {
+#nbhdBody.nbhd-body--collapsed {
     display: none;
 }
 
@@ -185,7 +208,8 @@ canvas.webgl {
     list-style: none;
     margin: 0;
     padding: 0;
-    max-height: 99px; /* 3 rows × 33px */
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
 }
 
@@ -265,6 +289,22 @@ canvas.webgl {
     border: 1.5px solid #2a2a2a;
     border-radius: 10px;
     overflow: hidden;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+}
+
+/* Layers open, neighborhoods closed */
+#left-panels.layers-open #layers-panel {
+    flex: 0 1 auto;
+    max-height: calc(100vh - 108px);
+}
+
+/* Both open: layers capped at 60% */
+#left-panels.nbhd-open.layers-open #layers-panel {
+    flex: 0 1 auto;
+    max-height: calc((100vh - 108px) * 0.6);
 }
 
 .layers-header {
@@ -293,11 +333,21 @@ canvas.webgl {
 
 #layersBody {
     border-top: 1.5px solid #2a2a2a;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#layersBody.collapsed {
+    display: none;
 }
 
 .layers-scroll {
-    max-height: 225px;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .layers-scroll::-webkit-scrollbar {
@@ -309,10 +359,6 @@ canvas.webgl {
 .layers-scroll::-webkit-scrollbar-thumb {
     background: #bbb;
     border-radius: 3px;
-}
-
-#layersBody.collapsed {
-    display: none;
 }
 
 .section-label {
@@ -343,8 +389,8 @@ canvas.webgl {
 }
 
 .section-fixed-divider {
-    height: 1.5px;
-    background: #2a2a2a;
+    height: 1px;
+    background: #e0e0e0;
 }
 
 .section-fixed {
