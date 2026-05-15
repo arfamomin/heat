@@ -1,7 +1,7 @@
 import { Layer } from '../Layer.js';
 
 async function fetchShadeData() {
-    const response = await fetch('data/shade/tree_data.geojson');
+    const response = await fetch('data/shade/tree_data_la.geojson');
     const geojson = await response.json();
 
     const accumulator = new Map();
